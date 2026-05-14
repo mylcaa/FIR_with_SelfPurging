@@ -2,16 +2,9 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.utils_pkg.all;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
 use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
-
-entity SP_REDUN_MAC is
+entity MAC_SelfPurging is
     generic (
         MUL_WIDTH        : natural  := 16;
         ACC_WIDTH        : natural := 16;
@@ -21,13 +14,14 @@ entity SP_REDUN_MAC is
     );
     Port (
           clk: in std_logic;
+          rst: in std_logic;
           mul_input: in std_logic_vector(MUL_WIDTH - 1 downto 0);               
           acc_input: in std_logic_vector(ACC_WIDTH - 1 downto 0);                         
           res: out std_logic_vector(ACC_WIDTH - 1 downto 0)
     );
-end SP_REDUN_MAC;
+end MAC_SelfPurging;
 
-architecture Behavioral of SP_REDUN_MAC is
+architecture Behavioral of MAC_SelfPurging is
 
 signal MAC_output: data_array_t(0 to MAC_INSTANCES-1)(ACC_WIDTH - 1 downto 0);
 signal voter_input : data_array_t(0 to MAC_INSTANCES-1)(ACC_WIDTH - 1 downto 0);
@@ -41,10 +35,11 @@ component MAC is
         REG_CONST : integer
     );
     port (
-          clk:       in std_logic;
-          mul_input: in std_logic_vector(MUL_WIDTH - 1 downto 0);               
-          acc_input: in std_logic_vector(ACC_WIDTH - 1 downto 0);                         
-          res:       out std_logic_vector(ACC_WIDTH - 1 downto 0)
+          clk       : in std_logic;
+          rst       : in std_logic;  
+          mul_input : in std_logic_vector(MUL_WIDTH - 1 downto 0);               
+          acc_input : in std_logic_vector(ACC_WIDTH - 1 downto 0);                         
+          res       : out std_logic_vector(ACC_WIDTH - 1 downto 0)
     );
 end component;
 
@@ -54,10 +49,12 @@ component voter is
         MAC_INSTANCES : natural;
         NaN           : std_logic_vector(ACC_WIDTH - 1 downto 0)
     );
-    port (
-        data_in        : in data_array_t(0 to MAC_INSTANCES-1)(ACC_WIDTH - 1 downto 0);  
-        voted_res      : out std_logic_vector(ACC_WIDTH - 1 downto 0);
-        en             : out std_logic_vector(0 to MAC_INSTANCES-1)
+    port (    
+        clk       : in std_logic;
+        rst       : in std_logic;
+        data_in   : in data_array_t(0 to MAC_INSTANCES-1)(ACC_WIDTH - 1 downto 0);  
+        voted_res : out std_logic_vector(ACC_WIDTH - 1 downto 0);
+        en        : out std_logic_vector(0 to MAC_INSTANCES-1)
     );
 end component;
 
@@ -71,10 +68,11 @@ gen_modules : for i in 0 to MAC_INSTANCES-1 generate
         REG_CONST => REG_CONST
     )
     port map (
-        clk => clk,
+        clk       => clk,
+        rst       => rst,
         mul_input => mul_input,
         acc_input => acc_input,
-        res => MAC_output(i)
+        res       => MAC_output(i)
     );
 end generate;
 
@@ -85,13 +83,15 @@ voter_instance: voter
         NaN           => NaN
     )
     port map (
+        clk       => clk,
+        rst       => rst,
         data_in   => voter_input,
         voted_res => res,
-        en => switch
+        en        => switch
     );
 
 --MUX to connect MAC output and voter input
-process
+process (all) 
 begin
     for i in 0 to MAC_INSTANCES-1 loop
         voter_input(i) <= MAC_output(i) when (switch(i) = '1') else NaN;
