@@ -13,11 +13,12 @@ entity MAC_SelfPurging is
         NaN              : std_logic_vector(ACC_WIDTH - 1 downto 0) := "0"
     );
     Port (
-          clk: in std_logic;
-          rst: in std_logic;
-          mul_input: in std_logic_vector(MUL_WIDTH - 1 downto 0);               
-          acc_input: in std_logic_vector(ACC_WIDTH - 1 downto 0);                         
-          res: out std_logic_vector(ACC_WIDTH - 1 downto 0)
+          clk       : in std_logic;
+          rst       : in std_logic;
+          en        : in std_logic;
+          mul_input : in std_logic_vector(MUL_WIDTH - 1 downto 0);               
+          acc_input : in std_logic_vector(ACC_WIDTH - 1 downto 0);                         
+          res       : out std_logic_vector(ACC_WIDTH - 1 downto 0)
     );
 end MAC_SelfPurging;
 
@@ -37,6 +38,7 @@ component MAC is
     port (
           clk       : in std_logic;
           rst       : in std_logic;  
+          en        : in std_logic;
           mul_input : in std_logic_vector(MUL_WIDTH - 1 downto 0);               
           acc_input : in std_logic_vector(ACC_WIDTH - 1 downto 0);                         
           res       : out std_logic_vector(ACC_WIDTH - 1 downto 0)
@@ -52,9 +54,10 @@ component voter is
     port (    
         clk       : in std_logic;
         rst       : in std_logic;
+        en        : in std_logic;
         data_in   : in data_array_t(0 to MAC_INSTANCES-1)(ACC_WIDTH - 1 downto 0);  
         voted_res : out std_logic_vector(ACC_WIDTH - 1 downto 0);
-        en        : out std_logic_vector(0 to MAC_INSTANCES-1)
+        switch_en : out std_logic_vector(0 to MAC_INSTANCES-1)
     );
 end component;
 
@@ -70,6 +73,7 @@ gen_modules : for i in 0 to MAC_INSTANCES-1 generate
     port map (
         clk       => clk,
         rst       => rst,
+        en        => en,
         mul_input => mul_input,
         acc_input => acc_input,
         res       => MAC_output(i)
@@ -85,9 +89,10 @@ voter_instance: voter
     port map (
         clk       => clk,
         rst       => rst,
+        en        => en,
         data_in   => voter_input,
         voted_res => res,
-        en        => switch
+        switch_en => switch
     );
 
 --MUX to connect MAC output and voter input

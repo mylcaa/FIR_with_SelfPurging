@@ -11,6 +11,7 @@ entity MAC is
     port (
           clk       : in std_logic;
           rst       : in std_logic;
+          en        : in std_logic;
           mul_input : in std_logic_vector(MUL_WIDTH - 1 downto 0);               
           acc_input : in std_logic_vector(ACC_WIDTH - 1 downto 0);                         
           res       : out std_logic_vector(ACC_WIDTH - 1 downto 0)
@@ -21,11 +22,12 @@ architecture Behavioral of MAC is
 
 signal reg_mul : std_logic_vector(2*MUL_WIDTH-1 downto 0);
 signal mul_res : std_logic_vector(2*MUL_WIDTH-1 downto 0);
-signal reg_acc : std_logic_vector(ACC_WIDTH-1 downto 0);
+signal reg_acc, next_acc : std_logic_vector(ACC_WIDTH-1 downto 0);
 
 begin
 
-mul_res <= std_logic_vector(signed(mul_input) * REG_CONST);
+mul_res <= std_logic_vector(signed(mul_input) * REG_CONST) when (en = '1') else reg_mul;
+next_acc <= acc_input when (en = '1') else reg_acc;
 res <= std_logic_vector(resize(signed(reg_mul), ACC_WIDTH) + signed(reg_acc));
 
 pipeline_reg: process(clk) is
@@ -34,9 +36,9 @@ begin
         if rst = '1' then
             reg_mul <= (others => '0');
             reg_acc <= (others => '0');
-        else
+        else 
             reg_mul <= mul_res;
-            reg_acc <= acc_input;
+            reg_acc <= next_acc;
         end if;
     end if;
 end process;
