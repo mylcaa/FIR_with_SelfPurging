@@ -13,12 +13,10 @@ entity FIR is
     rst : in std_logic;
     -- AXI Stream Slave Interface (input)
     s_axis_tdata  : in  std_logic_vector(INPUT_WIDTH - 1 downto 0);
-    s_axis_tlast  : in  std_logic;
     s_axis_tvalid : in  std_logic;
     s_axis_tready : out std_logic;
     -- AXI Stream Master Interface (output)
     m_axis_tdata  : out std_logic_vector(OUTPUT_WIDTH - 1 downto 0);
-    m_axis_tlast  : out std_logic;
     m_axis_tvalid : out std_logic;
     m_axis_tready : in  std_logic
 );
@@ -66,26 +64,32 @@ constant numSelfPurgingMAC : natural := 3;
 constant coefficients      : coeff_array_t(0 to FILTER_ORDER-1) := (0, 0, 0);
 
 --SIGNALS:-----------------------------------------------------------------------------
-signal MAC_output        : data_array_t(0 to FILTER_ORDER-2)(OUTPUT_WIDTH-1 downto 0); --MAC_output is the output for all MAC mods except for the last
-signal mul_input         : data_array_t(0 to FILTER_ORDER-2)(INPUT_WIDTH-1 downto 0);  --mul_input is the mul input for all MAC mods except for the first
+signal MAC_output        : data_array_output(0 to FILTER_ORDER-2); --MAC_output is the output for all MAC mods except for the last
+signal mul_input         : data_array_input(0 to FILTER_ORDER-2);  --mul_input is the mul input for all MAC mods except for the first
 
-signal data_cnt : std_logic_vector(FILTER_ORDER-1 downto 0) := (others => '0');
+signal m_axis_tvalid_signal : std_logic_vector(0 downto 0);
+signal en_axis_signal : std_logic;
 
 begin
 
 --AXI SIGNALS:-----------------------------------------------------------------------------
---TODO: Implement AXI stream signals 
-process (clk) begin
-    if (rising_edge(clk)) then
-        if (rst = '1') then
-            data_cnt <= (others => '0');
-        else 
-            if (s_axis_tvalid = '1' && m_axis_tready = '1')
-            
-            data_cnt <= 
-        end if;
-    end if;
-end process;
+s_axis_tready <= '1';
+en_axis_signal <= m_axis_tready and s_axis_tvalid;
+
+VALID_DATA_REG: Shift_Reg
+generic map (
+   WIDTH        => 1,
+   DELAY_CYCLES => DELAY*FILTER_ORDER
+)
+port map (
+   clk    => clk,
+   rst    => rst,
+   en     => en_axis_signal,
+   input  => (others => s_axis_tvalid),
+   output => m_axis_tvalid_signal
+);
+
+m_axis_tvalid <= m_axis_tvalid_signal(0);
 
 --MAC + REGISTER INSTANTIATION:-----------------------------------------------------------------------------
 MAC_0: MAC_SelfPurging
@@ -99,7 +103,7 @@ generic map (
 port map (
     clk       => clk,
     rst       => rst,
-    en        => s_axis_tvalid,
+    en        => en_axis_signal,
     mul_input => s_axis_tdata,
     acc_input => (others => '0'),
     res       => MAC_output(0)
@@ -113,7 +117,7 @@ generic map (
 port map (
    clk    => clk,
    rst    => rst,
-   en     => s_axis_tvalid,
+   en     => en_axis_signal,
    input  => s_axis_tdata,
    output => mul_input(0)
 );
@@ -130,7 +134,7 @@ gen_modules : for i in 1 to FILTER_ORDER-2 generate
     port map (
         clk       => clk,
         rst       => rst,
-        en        => s_axis_tvalid,
+        en        => en_axis_signal,
         mul_input => mul_input(i-1),
         acc_input => MAC_output(i-1),
         res       => MAC_output(i)
@@ -144,7 +148,7 @@ gen_modules : for i in 1 to FILTER_ORDER-2 generate
     port map (
        clk    => clk,
        rst    => rst,
-       en     => s_axis_tvalid,
+       en     => en_axis_signal,
        input  => mul_input(i-1),
        output => mul_input(i)
     );
@@ -161,12 +165,10 @@ generic map (
 port map (
     clk       => clk,
     rst       => rst,
-    en        => s_axis_tvalid,
+    en        => en_axis_signal,
     mul_input => mul_input(FILTER_ORDER-2),
     acc_input => MAC_output(FILTER_ORDER-2),
     res       => m_axis_tdata
 );
-
-s_axis_tready <= '1';
 
 end Behavioral;

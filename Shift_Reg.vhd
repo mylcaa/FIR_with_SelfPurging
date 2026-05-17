@@ -27,7 +27,7 @@ process (clk) begin
 
 if (rising_edge(clk)) then
     if rst = '1' then
-        pipe_reg_array <= (others => "0");
+        pipe_reg_array <= (others => (others => '0'));
         output <= (others => '0');
     else
         for i in 0 to DELAY_CYCLES-2 loop

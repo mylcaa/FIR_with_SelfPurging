@@ -24,8 +24,8 @@ end MAC_SelfPurging;
 
 architecture Behavioral of MAC_SelfPurging is
 
-signal MAC_output: data_array_t(0 to MAC_INSTANCES-1)(ACC_WIDTH - 1 downto 0);
-signal voter_input : data_array_t(0 to MAC_INSTANCES-1)(ACC_WIDTH - 1 downto 0);
+signal MAC_output: data_array_acc(0 to MAC_INSTANCES-1);
+signal voter_input : data_array_acc(0 to MAC_INSTANCES-1);
 
 signal switch : std_logic_vector(MAC_INSTANCES-1 downto 0); -- 0 bit value for off and 1 for on
 
@@ -55,7 +55,7 @@ component voter is
         clk       : in std_logic;
         rst       : in std_logic;
         en        : in std_logic;
-        data_in   : in data_array_t(0 to MAC_INSTANCES-1)(ACC_WIDTH - 1 downto 0);  
+        data_in   : in data_array_acc(0 to MAC_INSTANCES-1);  
         voted_res : out std_logic_vector(ACC_WIDTH - 1 downto 0);
         switch_en : out std_logic_vector(0 to MAC_INSTANCES-1)
     );
