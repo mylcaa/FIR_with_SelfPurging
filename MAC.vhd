@@ -1,7 +1,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-use work.all.utils_pkg;
+use work.utils_pkg.all;
 
 entity MAC is
     generic (

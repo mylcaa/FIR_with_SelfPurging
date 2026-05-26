@@ -61,9 +61,12 @@ end component;
 constant NaN               : std_logic_vector(OUTPUT_WIDTH - 1 downto 0) := (others => '1');
 constant DELAY             : natural := 4; --MAC one pipeline register + voter three pipeline registers
 constant numSelfPurgingMAC : natural := 3;
-constant coefficients      : coeff_array_t(0 to FILTER_ORDER-1) := (0, 0, 0);
+constant coefficients      : coeff_array_t(0 to FILTER_ORDER-1) := (1, 1, 1);
 
 --SIGNALS:-----------------------------------------------------------------------------
+type data_array_output is array (natural range <>) of std_logic_vector(OUTPUT_WIDTH-1 downto 0);
+type data_array_input is array (natural range <>) of std_logic_vector(INPUT_WIDTH-1 downto 0);
+
 signal MAC_output        : data_array_output(0 to FILTER_ORDER-2); --MAC_output is the output for all MAC mods except for the last
 signal mul_input         : data_array_input(0 to FILTER_ORDER-2);  --mul_input is the mul input for all MAC mods except for the first
 
