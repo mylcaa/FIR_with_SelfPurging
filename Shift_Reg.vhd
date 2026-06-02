@@ -21,8 +21,7 @@ architecture Behavioral of Shift_Reg is
 type data_array_pipe is array (natural range <>) of std_logic_vector(WIDTH-1 downto 0);
 
 signal pipe_next_array : data_array_pipe(0 to DELAY_CYCLES-1);
-signal pipe_reg_array  : data_array_pipe(0 to DELAY_CYCLES-2); -- the last pipe_reg is output
-
+signal pipe_reg_array  : data_array_pipe(0 to DELAY_CYCLES-2);
 begin
 
 process (clk) begin
@@ -32,10 +31,11 @@ if (rising_edge(clk)) then
         pipe_reg_array <= (others => (others => '0'));
         output <= (others => '0');
     else
-        for i in 0 to DELAY_CYCLES-3 loop
+        for i in 0 to DELAY_CYCLES-2 loop
             pipe_reg_array(i) <= pipe_next_array(i);
         end loop;
-        output <= pipe_next_array(DELAY_CYCLES-2);
+       
+        output <= pipe_next_array(DELAY_CYCLES-1);
     end if;
 end if;
 end process;
@@ -43,11 +43,11 @@ end process;
 process (all) begin
     pipe_next_array(0) <= input when (en = '1') else pipe_reg_array(0);
     
-    for i in 1 to DELAY_CYCLES-3 loop
+    for i in 1 to DELAY_CYCLES-2 loop
         pipe_next_array(i) <= pipe_reg_array(i-1) when (en = '1') else pipe_reg_array(i);
     end loop;
     
-    pipe_next_array(DELAY_CYCLES-2) <= pipe_reg_array(DELAY_CYCLES-3) when (en = '1') else output;
+    pipe_next_array(DELAY_CYCLES-1) <= pipe_reg_array(DELAY_CYCLES-2) when (en = '1') else output;
 end process;
 
 end Behavioral;

@@ -41,8 +41,8 @@ process (clk) begin
 if (rising_edge(clk)) then
     if rst = '1' then
         xor_reg_array <= (others => (others => '0'));
-        xor_low_reg_array <= (others => '0');  
-        en_signal_reg <= (others => '0');    
+        xor_low_reg_array <= (others => '1'); --initial state has all switches 'on'
+        en_signal_reg <= (others => '1'); --initial state has all switches 'on'
         
         data_in_xor_reg <= (others => (others => '0'));
         data_in_low_reg <= (others => (others => '0'));
