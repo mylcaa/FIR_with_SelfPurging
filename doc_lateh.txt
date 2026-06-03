@@ -1,0 +1,216 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath} %for math equations
+\usepackage{float} % for placing the picture
+\usepackage{graphicx} % Required for inserting images
+\usepackage{listings}
+
+\title{FIR Filter Implemented with the Self-purging Redundancy Technique}
+\author{DOCUMENTATION}
+\date{June 2026}
+\setlength{\parindent}{15pt}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+A FIR filter (Finite Impulse Response filter) is a filter whose output depends only on a finite number of current and past input samples. It is described by:
+
+\[
+y[n] = \sum_{k=0}^{N-1} h[k] \, x[n-k]
+\]
+
+where:
+
+\begin{itemize}
+    \item $x[n]$ is the input signal,
+    \item $y[n]$ is the output signal,
+    \item $h[k]$ are the filter coefficients (taps)
+\end{itemize}
+
+Each input sample is multiplied by a coefficient and the products are summed together. In hardware, FIR filters are typically implemented using a chain of multipliers, adders, and delay registers.\par
+\vspace{0.2cm}
+Self-Purging Redundancy (SPR) is a fault-tolerance technique that employs multiple redundant instances of a module and automatically excludes faulty instances from the final decision process. The operation of SPR can be summarized as follows:
+
+\begin{enumerate}
+    \item Replicate the module $M$ times.
+    \item Apply the same input to all replicas.
+    \item Compare the outputs of all replicas.
+    \item Identify modules whose outputs agree with the majority.
+    \item Exclude modules whose outputs deviate beyond a predefined tolerance threshold.
+    \item Generate the final output using only the trusted replicas.
+\end{enumerate}
+
+Here we apply SPR on the FIR filter at the MAC module level - each "tap" has M redundant MAC modules whose outputs are fed to a voter.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image.png}
+    \caption{Example of the SPR technique applied to a MAC module}
+    \label{fig:placeholder}
+\end{figure}
+
+\section{Architecture}
+
+The designed Self-purging FIR filter was written to be fully parametrized. This means that the input data width, filter order and number of redundant MAC modules can be changed through the constants set in the top module of the project.\par
+\vspace{0.2cm}
+Since both the MAC modules and the voter have several pipeline stages, the multiplication inputs for each successive Self-purging MAC module within the filter need to be delayed by the number of pipeline phases present in both the MAC modules and the voter (Figure 2).\par
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{FIR.png}
+    \caption{FIR Filter - Modular Design}
+    \label{fig:placeholder}
+\end{figure}
+
+The implementation of the shift registers is trivial and what we can note is that we use an enable signal to stall the whole filter when the data input is not valid. This signal is visible on Figure 3 for the shift registers as well.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{ShiftReg.png}
+    \caption{Shift register implementation}
+    \label{fig:placeholder}
+\end{figure}
+
+The MAC modules are straight forward, a multiply and accumulate operation with a pipeline installed to improve throughput (Figure 4). The outputs are fed to a voter (Figure 5) which compares each input with each other using XOR gates. The tolerance of the comparison can be adjusted by changing the number of bits which are compared. This comparison along with the current values of the inputs determines the switch enable signals and voted output.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\linewidth]{MAC.png}
+    \caption{MAC Design}
+    \label{fig:placeholder}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{voter.png}
+    \caption{Voter Design}
+    \label{fig:placeholder}
+\end{figure}
+
+\section{Testing results}
+
+Running a simulation of the filter for three redundant modules and three "taps" or three coefficients gives us the waveforms shown in Figure 6. The green colored signals are the inputs and outputs of the filter while the yellow, blue, and pink colored signals are, respectively, the inputs and outputs of Self-purging MAC modules. We can clearly see that for each MAC (or for each of the colors) the results are shifted by the number of pipelines we have per MAC module.\par
+\vspace{0.5cm}
+If we were to look at the first valid input into the filter we can see that it's corresponding output appears twelve clocks later. This number corresponds to the product of the number of "taps" and the number of pipelines that we have within one self-purging MAC module.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{tbResult.png}
+    \caption{Simulation of filter}
+    \label{fig:placeholder}
+\end{figure}
+
+To simulate a stuck-at fault in the system we use the tcl command:
+\begin{lstlisting}[language=tcl]
+restart
+add_force {'signal_path'} -radix hex {0000}
+run all
+\end{lstlisting}
+
+While to undo the effect of the set stuck-at fault previously applied we use the tcl command:
+\begin{lstlisting}[language=tcl]
+remove_force {'signal_path'}
+\end{lstlisting}
+
+We expect to see the same output chosen when there is no fault (Figure 7) as well as when there is a single stuck-at fault (Figure 8). The difference in those two cases would be the switch enable signal, which should disable the MAC with the stuck-at fault. If we had two stuck-at faults and three redundant modules the output voted should be the erroneous one and that will also be reflected in the switch enable signals, which will disable all three MAC modules (Figure 9).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{noError.png}
+    \caption{Voted result and switch enable signals when there is no fault present}
+    \label{fig:placeholder}
+\end{figure}
+
+
+
+\section{Timing and resource analysis}
+
+The inputs to the program include the neural network topology and dimensions, the paths to the training and test datasets, and the number of processes or threads used for execution. In our experiments, we vary the network size and the number of execution threads to examine their effect on training time. The primary objectives are to demonstrate that parallel implementations achieve measurable speedup when the neural network is "sufficiently large", and that this speedup decreases as the network size becomes smaller. We will also show that the change in network size doesn't have a decisive impact on network precision.\par
+\vspace{0.5cm}
+The results will be depicted using tables, where each table corresponds to a different network topology listed in the caption using the following notation: \textbf{[input : layer 1 dim : \ldots : layer N dim : output]}\par
+
+\begin{table}[h!]
+\centering
+\caption{Training time and speed-up for neural network [786:512:256:128:10]}
+\begin{tabular}{cccc}
+\toprule
+Num of threads & Training time [s] & Speed-up & Precision [\%] \\
+\midrule
+1 & 50.071  & 1.00    & \multirow{4}{*}{89.23} \\
+2 & 32.2821 & 1.55 & \\
+4 & 19.3453 & 2.59 & \\
+8 & 16.0741 & 3.11 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}[h!]
+\centering
+\caption{Training time and speed-up for neural network [786:256:128:64:10]}
+\begin{tabular}{cccc}
+\toprule
+Num of threads & Training time [s] & Speed-up & Precision [\%] \\
+\midrule
+1 & 16.4427  & 1.00    & \multirow{4}{*}{86.74} \\
+2 & 9.38719 & 1.75 & \\
+4 & 7.05949 & 2.33 & \\
+8 & 7.1395 & 2.30* & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Training time and speed-up for neural network [786:256:64:10]}
+\begin{tabular}{cccc}
+\toprule
+Num of threads & Training time [s] & Speed-up & Precision [\%] \\
+\midrule
+1 & 12.4463  & 1.00    & \multirow{4}{*}{88.26} \\
+2 & 11.6225 & 1.07 & \\
+4 & 8.14092 & 1.53 & \\
+8 & 6.13998 & 2.03 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Training time and speed-up for neural network [786:128:64:10]}
+\begin{tabular}{cccc}
+\toprule
+Num of threads & Training time [s] & Speed-up & Precision [\%] \\
+\midrule
+1 & 6.8231  & 1.00    & \multirow{4}{*}{88.31} \\
+2 & 5.41727 & 1.26 & \\
+4 & 4.56017 & 1.50 & \\
+8 & 4.88325 & 1.39* & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The speed-up results marked in the table with an asterisk for the 8 thread version of the program are smaller than the results we have for the 4 thread version. The explanation for that could be the hardware limitation. The program is run on an intel i7 10th generation processor which possesses 8 threads in total. Using all of them could be influencing the result as this program isn't the only process running on the processor. This idea could be supported by the results we get when using 6 or 7 threads, making sure to use layer dimensions that are divisible by one of the two numbers as well as by four and eight so that the load is balanced (see table 5 bellow).\par
+
+\begin{table}[h!]
+\centering
+\caption{Training time and speed-up for neural network [786:120:60:10]}
+\begin{tabular}{cccc}
+\toprule
+Num of threads & Training time [s] & Speed-up & Precision [\%] \\
+\midrule
+1 & 8.99365  & 1   & \multirow{4}{*}{87.68} \\
+2 & 5.91038 & 1.52 & \\
+4 & 5.19014 & 1.73 & \\
+6 & 5.00726 & 1.80 & \\
+8 & 5.28303 & 1.70 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Another notable thing is the difference in speed-up when looking at the 4 thread version used for each of the different neural networks. It is getting smaller as the network topology and dimensions get smaller. This is the influence of the overhead we mentioned.\par
+\vspace{0.5cm}
+We can thus conclude that the network parallelization successfully sped-up the training process without hindering network functionality.
+\end{document}
+

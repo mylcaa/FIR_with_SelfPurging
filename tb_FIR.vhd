@@ -21,10 +21,12 @@ signal rst : std_logic := '1';
 
 signal s_axis_tdata  : std_logic_vector(INPUT_WIDTH - 1 downto 0) := (others => '0');
 signal s_axis_tvalid : std_logic := '0';
+signal s_axis_tlast  : std_logic := '0';
 signal s_axis_tready : std_logic;
 
 signal m_axis_tdata  : std_logic_vector(OUTPUT_WIDTH - 1 downto 0);
 signal m_axis_tvalid : std_logic;
+signal m_axis_tlast  : std_logic;
 signal m_axis_tready : std_logic := '1';
 
 begin
@@ -42,10 +44,12 @@ uut : entity work.FIR
 
         s_axis_tdata  => s_axis_tdata,
         s_axis_tvalid => s_axis_tvalid,
+        s_axis_tlast  => s_axis_tlast,
         s_axis_tready => s_axis_tready,
 
         m_axis_tdata  => m_axis_tdata,
         m_axis_tvalid => m_axis_tvalid,
+        m_axis_tlast  => m_axis_tlast,
         m_axis_tready => m_axis_tready
     );
 
@@ -77,6 +81,12 @@ begin
         -- Apply data
         s_axis_tdata <= std_logic_vector(to_signed(sample, INPUT_WIDTH));
         s_axis_tvalid <= '1';
+        
+            if i = 20 then
+                s_axis_tlast <= '1';
+            else
+                s_axis_tlast <= '0';
+            end if;
 
         -- Wait handshake
         loop
@@ -96,6 +106,7 @@ begin
 
     -- stop sending
     s_axis_tvalid <= '0';
+    s_axis_tlast  <= '0';
 
     wait;
 end process;

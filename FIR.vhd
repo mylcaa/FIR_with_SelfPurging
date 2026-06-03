@@ -14,10 +14,12 @@ entity FIR is
     -- AXI Stream Slave Interface (input)
     s_axis_tdata  : in  std_logic_vector(INPUT_WIDTH - 1 downto 0);
     s_axis_tvalid : in  std_logic;
+    s_axis_tlast  : in  std_logic;
     s_axis_tready : out std_logic;
     -- AXI Stream Master Interface (output)
     m_axis_tdata  : out std_logic_vector(OUTPUT_WIDTH - 1 downto 0);
     m_axis_tvalid : out std_logic;
+    m_axis_tlast  : out std_logic;
     m_axis_tready : in  std_logic
 );
 end FIR;
@@ -71,13 +73,25 @@ signal MAC_output        : data_array_output(0 to FILTER_ORDER-2); --MAC_output 
 signal mul_input         : data_array_input(0 to FILTER_ORDER-2);  --mul_input is the mul input for all MAC mods except for the first
 
 signal m_axis_tvalid_signal : std_logic_vector(0 downto 0);
-signal en_axis_signal : std_logic;
+signal m_axis_tlast_signal : std_logic_vector(0 downto 0);
+signal en_axis_signal       : std_logic;
+signal input_done_signal    : std_logic := '0';
 
 begin
 
 --AXI SIGNALS:-----------------------------------------------------------------------------
 s_axis_tready <= '1';
-en_axis_signal <= m_axis_tready and s_axis_tvalid;
+
+--m_axis_signal generation
+process (s_axis_tlast, s_axis_tvalid) begin
+    if (s_axis_tlast = '1') then
+        input_done_signal <= '1';
+    elsif (s_axis_tvalid = '1') then
+        input_done_signal <= '0';
+    end if;
+end process;
+
+en_axis_signal <= (m_axis_tready and s_axis_tvalid) or input_done_signal;
 
 VALID_DATA_REG: Shift_Reg
 generic map (
@@ -93,6 +107,21 @@ port map (
 );
 
 m_axis_tvalid <= m_axis_tvalid_signal(0);
+
+LAST_DATA_REG: Shift_Reg
+generic map (
+   WIDTH        => 1,
+   DELAY_CYCLES => DELAY*FILTER_ORDER
+)
+port map (
+   clk    => clk,
+   rst    => rst,
+   en     => en_axis_signal,
+   input  => (others => s_axis_tlast),
+   output => m_axis_tlast_signal
+);
+
+m_axis_tlast <= m_axis_tlast_signal(0);
 
 --MAC + REGISTER INSTANTIATION:-----------------------------------------------------------------------------
 MAC_0: MAC_SelfPurging
