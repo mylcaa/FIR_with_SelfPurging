@@ -76,14 +76,15 @@ begin
         for i in 0 to MAC_INSTANCES-1 loop
             tmp := '0';
             
-            for j in 0 to MAC_INSTANCES-2 loop
-                for k in (j+1) to MAC_INSTANCES-1 loop 
-                    if ((j = i) or (k = i)) then
-                        tmp := tmp or not(xor_reg_array(j)(k));
-                    end if;
+            if (data_in_xor_reg(i) /= NaN) then
+                for j in 0 to MAC_INSTANCES-2 loop
+                    for k in (j+1) to MAC_INSTANCES-1 loop 
+                        if (((j = i) or (k = i)) and not(data_in_xor_reg(j) = NaN or data_in_xor_reg(k) = NaN)) then
+                            tmp := tmp or not(xor_reg_array(j)(k));
+                        end if;
+                    end loop;
                 end loop;
-            end loop;
-            
+            end if;
             xor_low_next_array(i) <= tmp;
             
             if (data_in_low_reg(i) = NaN) then
