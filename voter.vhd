@@ -15,7 +15,7 @@ port (
     en        : in std_logic;
     data_in   : in data_array_acc(0 to MAC_INSTANCES-1);  
     voted_res : out std_logic_vector(ACC_WIDTH - 1 downto 0);
-    switch_en : out std_logic_vector(0 to MAC_INSTANCES-1)
+    switch_en : out std_logic_vector(MAC_INSTANCES-1 downto 0)
 );
 end voter;
 
@@ -27,8 +27,8 @@ signal xor_next_array : data_array_mac_inst(0 to MAC_INSTANCES-1);
 signal xor_low_reg_array  : std_logic_vector(MAC_INSTANCES-1 downto 0) := (others => '0');
 signal xor_low_next_array : std_logic_vector(MAC_INSTANCES-1 downto 0) := (others => '0');
 
-signal en_signal_reg  : std_logic_vector(0 to MAC_INSTANCES-1);
-signal en_signal_next : std_logic_vector(0 to MAC_INSTANCES-1);
+signal en_signal_reg  : std_logic_vector(MAC_INSTANCES-1 downto 0);
+signal en_signal_next : std_logic_vector(MAC_INSTANCES-1 downto 0);
 
 signal data_in_xor_reg, data_in_xor_next : data_array_acc(0 to MAC_INSTANCES-1);
 signal data_in_low_reg, data_in_low_next : data_array_acc(0 to MAC_INSTANCES-1);
@@ -60,11 +60,12 @@ end if;
 end process;
 
 process (all)
+variable tmp : std_logic;
 begin
     if (en = '1') then
         for i in 0 to MAC_INSTANCES-2 loop
             for j in (i+1) to MAC_INSTANCES-1 loop
-              xor_next_array(i)(j) <= '1' when data_in(i) = data_in(j) else '0';
+              xor_next_array(i)(j) <= '0' when data_in(i) = data_in(j) else '1';
             end loop;
         end loop;
     else 
@@ -73,13 +74,17 @@ begin
        
     if (en = '1') then 
         for i in 0 to MAC_INSTANCES-1 loop
-            for j in 0 to MAC_INSTANCES-1 loop
-                for k in 0 to MAC_INSTANCES-1 loop 
+            tmp := '0';
+            
+            for j in 0 to MAC_INSTANCES-2 loop
+                for k in (j+1) to MAC_INSTANCES-1 loop 
                     if ((j = i) or (k = i)) then
-                        xor_low_next_array(i) <= xor_low_next_array(i) or not(xor_reg_array(j)(k));
+                        tmp := tmp or not(xor_reg_array(j)(k));
                     end if;
                 end loop;
             end loop;
+            
+            xor_low_next_array(i) <= tmp;
             
             if (data_in_low_reg(i) = NaN) then
                 en_signal_next(i) <= '0';
@@ -92,7 +97,7 @@ begin
         en_signal_next <= en_signal_reg;
     end if;
     
-    if (en_signal_reg = (en_signal_reg'range => '0')) then
+    if (en_signal_reg /= (en_signal_reg'range => '0')) then
         for i in 0 to MAC_INSTANCES-1 loop
             if en_signal_reg(i) = '1' then
                 voted_res <= data_in_en_reg(i);
