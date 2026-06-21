@@ -24,14 +24,10 @@ architecture Behavioral of voter is
 signal xor_reg_array  : data_array_mac_inst(0 to MAC_INSTANCES-1);
 signal xor_next_array : data_array_mac_inst(0 to MAC_INSTANCES-1);
 
-signal xor_low_reg_array  : std_logic_vector(MAC_INSTANCES-1 downto 0) := (others => '0');
-signal xor_low_next_array : std_logic_vector(MAC_INSTANCES-1 downto 0) := (others => '0');
-
 signal en_signal_reg  : std_logic_vector(MAC_INSTANCES-1 downto 0);
 signal en_signal_next : std_logic_vector(MAC_INSTANCES-1 downto 0);
 
 signal data_in_xor_reg, data_in_xor_next : data_array_acc(0 to MAC_INSTANCES-1);
-signal data_in_low_reg, data_in_low_next : data_array_acc(0 to MAC_INSTANCES-1);
 signal data_in_en_reg,  data_in_en_next  : data_array_acc(0 to MAC_INSTANCES-1);
 
 begin
@@ -41,20 +37,18 @@ process (clk) begin
 if (rising_edge(clk)) then
     if rst = '1' then
         xor_reg_array <= (others => (others => '0'));
-        xor_low_reg_array <= (others => '1'); --initial state has all switches 'on'
         en_signal_reg <= (others => '1'); --initial state has all switches 'on'
         
         data_in_xor_reg <= (others => (others => '0'));
-        data_in_low_reg <= (others => (others => '0'));
-        data_in_en_reg  <= (others => (others => '0'));  
+        data_in_en_reg  <= (others => (others => '0'));
+
     else
         xor_reg_array <= xor_next_array;
-        xor_low_reg_array <= xor_low_next_array; 
         en_signal_reg <= en_signal_next;
         
         data_in_xor_reg <= data_in_xor_next;
-        data_in_low_reg <= data_in_low_next;
         data_in_en_reg  <= data_in_en_next;
+        
     end if;
 end if;
 end process;
@@ -62,6 +56,8 @@ end process;
 process (all)
 variable tmp : std_logic;
 begin
+    xor_next_array <= (others => (others => '0'));
+    
     if (en = '1') then
         for i in 0 to MAC_INSTANCES-2 loop
             for j in (i+1) to MAC_INSTANCES-1 loop
@@ -85,28 +81,19 @@ begin
                     end loop;
                 end loop;
             end if;
-            xor_low_next_array(i) <= tmp;
-            
-            if (data_in_low_reg(i) = NaN) then
-                en_signal_next(i) <= '0';
-            else
-                en_signal_next(i) <= xor_low_reg_array(i);
-            end if;
+            en_signal_next(i) <= tmp;
         end loop;
     else 
-        xor_low_next_array <= xor_low_reg_array;
         en_signal_next <= en_signal_reg;
     end if;
     
+    voted_res <= data_in_en_reg(0);
     if (en_signal_reg /= (en_signal_reg'range => '0')) then
         for i in 0 to MAC_INSTANCES-1 loop
             if en_signal_reg(i) = '1' then
                 voted_res <= data_in_en_reg(i);
-                exit;
             end if;
         end loop;
-    else
-        voted_res <= data_in_en_reg(0);
     end if;
     
 end process;
@@ -114,8 +101,6 @@ end process;
 switch_en <= en_signal_reg;
 
 data_in_xor_next <= data_in when (en = '1') else data_in_xor_reg;
-data_in_low_next <= data_in_xor_reg when (en = '1') else data_in_low_reg;
-data_in_en_next <= data_in_low_reg when (en = '1') else data_in_en_reg;
+data_in_en_next <= data_in_xor_reg when (en = '1') else data_in_en_reg;
         
-
 end Behavioral;

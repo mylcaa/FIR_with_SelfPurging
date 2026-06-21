@@ -61,7 +61,7 @@ end component;
 
 --CONSTANTS:---------------------------------------------------------------------------
 constant NaN               : std_logic_vector(OUTPUT_WIDTH - 1 downto 0) := (others => '1');
-constant DELAY             : natural := 4; --MAC one pipeline register + voter three pipeline registers
+constant DELAY             : natural := 4; --MAC two pipeline registers + voter two pipeline registers
 constant numSelfPurgingMAC : natural := 3;
 constant coefficients      : coeff_array_t(0 to FILTER_ORDER-1) := (1, 1, 1);
 
@@ -73,9 +73,11 @@ signal MAC_output        : data_array_output(0 to FILTER_ORDER-2); --MAC_output 
 signal mul_input         : data_array_input(0 to FILTER_ORDER-2);  --mul_input is the mul input for all MAC mods except for the first
 
 signal m_axis_tvalid_signal : std_logic_vector(0 downto 0);
-signal m_axis_tlast_signal : std_logic_vector(0 downto 0);
+signal m_axis_tlast_signal  : std_logic_vector(0 downto 0);
 signal en_axis_signal       : std_logic;
-signal input_done_signal    : std_logic := '0';
+
+signal input_done_signal_next    : std_logic := '0';
+signal input_done_signal_reg     : std_logic := '0';
 
 begin
 
@@ -83,15 +85,28 @@ begin
 s_axis_tready <= '1';
 
 --m_axis_signal generation
-process (s_axis_tlast, s_axis_tvalid) begin
+process (clk) begin
+
+if (rising_edge(clk)) then
+    if rst = '1' then
+        input_done_signal_reg <= '0';
+    else
+        input_done_signal_reg <= input_done_signal_next;
+    end if;
+end if;
+end process;
+
+process (s_axis_tlast, s_axis_tvalid, input_done_signal_reg) begin
     if (s_axis_tlast = '1') then
-        input_done_signal <= '1';
+        input_done_signal_next <= '1';
     elsif (s_axis_tvalid = '1') then
-        input_done_signal <= '0';
+        input_done_signal_next <= '0';
+    else
+        input_done_signal_next <= input_done_signal_reg;
     end if;
 end process;
 
-en_axis_signal <= (m_axis_tready and s_axis_tvalid) or input_done_signal;
+en_axis_signal <= (m_axis_tready and s_axis_tvalid) or input_done_signal_reg;
 
 VALID_DATA_REG: Shift_Reg
 generic map (

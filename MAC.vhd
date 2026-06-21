@@ -25,11 +25,15 @@ signal reg_mul : std_logic_vector(2*MUL_WIDTH-1 downto 0);
 signal mul_res : std_logic_vector(2*MUL_WIDTH-1 downto 0);
 signal reg_acc, next_acc : std_logic_vector(ACC_WIDTH-1 downto 0);
 
+signal reg_res, next_res : std_logic_vector(ACC_WIDTH-1 downto 0);
+
 begin
 
 mul_res <= std_logic_vector(signed(mul_input) * REG_CONST) when (en = '1') else reg_mul;
 next_acc <= acc_input when (en = '1') else reg_acc;
-res <= std_logic_vector(resize(signed(reg_mul), ACC_WIDTH) + signed(reg_acc));
+next_res <= std_logic_vector(resize(signed(reg_mul), ACC_WIDTH) + signed(reg_acc));
+
+res <= reg_res;
 
 pipeline_reg: process(clk) is
 begin
@@ -37,9 +41,11 @@ begin
         if rst = '1' then
             reg_mul <= (others => '0');
             reg_acc <= (others => '0');
+            reg_res <= (others => '0');
         else 
             reg_mul <= mul_res;
             reg_acc <= next_acc;
+            reg_res <= next_res;
         end if;
     end if;
 end process;
